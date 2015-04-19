@@ -4,22 +4,94 @@ output:
   html_document:
     keep_md: true
 ---
+```{r read-data,echo=TRUE}
 
-
-## Loading and preprocessing the data
-
-
-
+x1<-read.csv(file="activity.csv",header=T,sep=",",stringsAsFactors=FALSE)
+#drop NA values
+x2<-subset(x1,subset=(x1[[1]]!="NA"))
+```
 ## What is mean total number of steps taken per day?
+```{r Make a histogram of the total number of steps taken each day,echo=TRUE}
+y1<-aggregate(x2$steps,by=list(x2[["date"]]),FUN=sum)
+colnames(y1)<-c("date","totalStepsPerDay")
 
+hist(y1$totalStepsPerDay,24,main=" total number of steps taken each day",col="red",xlab="totalStepsPerDay")
+#barplot(height=y1$totalStepsPerDay,main=" total number of steps taken each day",names.arg=y1$date)
 
-
+```
+## Calculate and report the mean and median total number of steps taken per day
+```{r  mean and median total number of steps taken per day,echo=TRUE}
+mean_total_num_perday<-mean(y1$totalStepsPerDay)
+print(mean_total_num_perday)
+median_total_num_perday<-median(y1$totalStepsPerDay)
+print(median_total_num_perday)
+```
 ## What is the average daily activity pattern?
-
-
-
+```{r the average daily activity pattern,echo=TRUE}
+y2<-aggregate(x2$steps,by=list(x2[["interval"]]),FUN=mean)
+names(y2)<-c("time","total steps")
+plot(y2[["time"]],y2[["total steps"]],type="l",xlab="time",ylab="total steps")
+maxsteps<-max(y2[["total steps"]])
+five_minute_maximum<-y2[y2[["total steps"]]==maxsteps,][["time"]]
+print("The 5-minute interval is ")
+print(five_minute_maximum)
+```
 ## Imputing missing values
+```{r Missing values,echo=TRUE}
+num_of_NAs<-subset(x1,subset=(is.na(x1[[1]])))
+print(" total number of missing values is")
+print(nrow(num_of_NAs))
+## fill in all of the missing values in the dataset-- the stategy is the mean for that 5-minute interval
+filled_of_NAs<-num_of_NAs
+#num_of_NAs[["steps"]]<-sapply(num_of_NAs[["inteval"]],fillMissing)
+# for(i in 1:nrow(num_of_NAs)){
+#     filled_of_NAs[i,1]<-fillMissing(filled_of_NAs[i,3])
+# }
+# 
+# fillMissing<-function(i){
+# 	y2[y2[["time"]]==i,][["total steps"]]	
+# }
+for(i in 1:nrow(num_of_NAs)){
+    filled_of_NAs[i,1]<-y2[y2[["time"]]==filled_of_NAs[i,3],][["total steps"]]
+}
 
+## Create a new dataset that is equal to the original dataset but with the missing data filled in.
+filled<-rbind(filled_of_NAs,x2)
+## Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+filledTotalNumber<-aggregate(filled$steps,by=list(filled[["date"]]),FUN=sum)
+colnames(filledTotalNumber)<-c("date","totalStepsPerDay")
+#barplot(height=filledTotalNumber$totalStepsPerDay,main=" total number of steps taken each day with NAs filled",names.arg=filledTotalNumber$date)
+hist(filledTotalNumber$totalStepsPerDay,24,main=" total number of steps taken each day with NAs filled",col="red",xlab="totalStepsPerDay")
+
+mean_with_NAs_filled<-mean(filledTotalNumber$totalStepsPerDay)
+cat("mean with NAs filled is ",mean_with_NAs_filled)
+median_with_NAd_filled<-median(filledTotalNumber$totalStepsPerDay)
+cat("Median with NAs filled is ",median_with_NAd_filled)
+print("Median remains the same; But mean is slighty higher")
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r differences in activity patterns between weekdays and weekends,echo=TRUE}
+filled$weekday<-as.POSIXlt(as.Date(filled$date))$wday
+filled$weekday2<-filled$weekday
+weekdays<-function(i){
+    if(i==0 |i ==6)
+        return("weekend")
+    else
+        return ("weekday")
+    
+}
+for(i in 1:nrow(filled)){
+    
+    filled[i,5]<-weekdays(filled[i,4])
+}
+
+filled$weekday2<-factor(filled$weekday2)
+
+tmp1<-aggregate(filled$steps,by=list(filled[["weekday2"]],filled[["interval"]]),FUN=mean)
+names(tmp1)<-c("weekday2","interval","steps")
+#tmp1[[steps]]<-tmp1[[steps]]
+library(lattice)
+xyplot(steps~interval|weekday2,data=tmp1,type="l",layout=c(1,2),ylab="number of steps")
+```
